@@ -1,23 +1,33 @@
 use std::fmt::{Debug, Formatter};
+use crate::string_reader::{is_word_char, StringReader};
 
 #[derive(Debug)]
 enum TokenType {
     Keyword,
     Identifier,
-    Equals,
-    Plus,
+    Operator,
+    Separator,
     Integer,
-    Semicolon,
     LeftBrace, // {
     RightBrace, // }
     LeftParen, // (
     RightParen, // )
 }
 
+const KEYWORDS: &'static [&'static str] = &["let", "if", "loop"];
+const OPERATORS: [char; 4] = ['+', '-', '*', '/'];
+const SEPARATOR: [char; 7] = ['(', ')', '{', '}', '.', ';', '='];
+
 struct Token {
     token_type: TokenType,
     index: usize,
     data: Option<String>,
+}
+
+impl Token {
+    pub fn with_data(token_type: TokenType, index: usize, data: String) -> Self {
+        Self { token_type, index, data: Some(data) }
+    }
 }
 
 impl Debug for Token {
@@ -31,7 +41,36 @@ impl Debug for Token {
 }
 
 fn lex(source: &str) -> Vec<Token> {
-    todo!();
+    let mut reader = StringReader::new(source);
+    let mut tokens = Vec::new();
+
+    while let Some(c) = reader.read() {
+        if c == '/' && reader.peek() == Some('/') {
+            todo!("Skip comment");
+        } else if c == '/' && reader.peek() == Some('*') {
+            todo!("Skip block comment");
+        } else if OPERATORS.contains(&c) {
+            tokens.push(Token::with_data(TokenType::Operator, reader.index(), String::from(c)));
+        } else if SEPARATOR.contains(&c) {
+            tokens.push(Token::with_data(TokenType::Separator, reader.index(), String::from(c)));
+        } else if is_word_char(c) {
+            let word = reader.read_word(c);
+            if KEYWORDS.contains(&&word[..]) {
+                tokens.push(Token::with_data(TokenType::Keyword, reader.index(), word));
+            } else {
+                tokens.push(Token::with_data(TokenType::Identifier, reader.index(), word));
+            }
+        } else if c.is_digit(10) {
+            let int = reader.read_int(c);
+            tokens.push(Token::with_data(TokenType::Integer, reader.index(), int));
+        } else {
+            panic!("Unexpected '{}'", c);
+        }
+
+        reader.skip_whitespace();
+    }
+
+    tokens
 }
 
 #[cfg(test)]
@@ -58,7 +97,7 @@ mod tests {
     fn test1() {
         lex_test(
             "let first = 0;",
-            "Keyword(let) Identifier(first) Equals Integer(0) Semicolon"
+            "Keyword(let) Identifier(first) Separator(=) Integer(0) Separator(;)"
         );
     }
 }

@@ -1,3 +1,4 @@
+mod string_reader;
 mod lexer;
 
 fn main() {
