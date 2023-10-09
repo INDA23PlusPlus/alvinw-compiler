@@ -1,8 +1,8 @@
 use std::fmt::{Debug, Formatter};
 use crate::string_reader::{is_word_char, StringReader};
 
-#[derive(Debug)]
-enum TokenType {
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub enum TokenType {
     Keyword,
     Identifier,
     Operator,
@@ -18,15 +18,33 @@ const KEYWORDS: &'static [&'static str] = &["let", "if", "loop"];
 const OPERATORS: [char; 4] = ['+', '-', '*', '/'];
 const SEPARATOR: [char; 7] = ['(', ')', '{', '}', '.', ';', '='];
 
-struct Token {
+pub struct Token {
     token_type: TokenType,
     index: usize,
     data: Option<String>,
 }
 
+#[derive(Debug)]
+pub enum LexError {
+    UnexpectedCharacter(char),
+}
+
 impl Token {
     pub fn with_data(token_type: TokenType, index: usize, data: String) -> Self {
         Self { token_type, index, data: Some(data) }
+    }
+
+    pub fn is(&self, ty: TokenType, data: &str) -> bool {
+        self.token_type == ty && self.data.as_ref().is_some_and(|d| d == data)
+    }
+
+    pub fn token_type(&self) -> TokenType {
+        self.token_type
+    }
+
+
+    pub fn data(&self) -> &Option<String> {
+        &self.data
     }
 }
 
@@ -40,7 +58,7 @@ impl Debug for Token {
     }
 }
 
-fn lex(source: &str) -> Vec<Token> {
+pub fn lex(source: &str) -> Result<Vec<Token>, LexError> {
     let mut reader = StringReader::new(source);
     let mut tokens = Vec::new();
 
@@ -64,13 +82,13 @@ fn lex(source: &str) -> Vec<Token> {
             let int = reader.read_int(c);
             tokens.push(Token::with_data(TokenType::Integer, reader.index(), int));
         } else {
-            panic!("Unexpected '{}'", c);
+            return Err(LexError::UnexpectedCharacter(c));
         }
 
         reader.skip_whitespace();
     }
 
-    tokens
+    Ok(tokens)
 }
 
 #[cfg(test)]
@@ -78,7 +96,7 @@ mod tests {
     use super::*;
 
     fn lex_test(source: &str, token_string: &str) {
-        let tokens = lex(source);
+        let tokens = lex(source).expect("Failed to lex");
         for (index, expected_token_string) in token_string.split_whitespace().enumerate() {
             let token = tokens.get(index)
                 .expect(&format!("Expected token at token index {}", index));
