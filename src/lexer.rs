@@ -8,16 +8,13 @@ pub enum TokenType {
     Operator,
     Separator,
     Integer,
-    LeftBrace, // {
-    RightBrace, // }
-    LeftParen, // (
-    RightParen, // )
 }
 
-const KEYWORDS: &'static [&'static str] = &["let", "if", "loop"];
-const OPERATORS: [char; 4] = ['+', '-', '*', '/'];
-const SEPARATOR: [char; 7] = ['(', ')', '{', '}', '.', ';', '='];
+const KEYWORDS: &'static [&'static str] = &["let", "if", "loop", "change"];
+const OPERATORS: [char; 5] = ['+', '-', '*', '/', '='];
+const SEPARATOR: [char; 6] = ['(', ')', '{', '}', '.', ';'];
 
+#[derive(PartialEq, Eq, Clone)]
 pub struct Token {
     token_type: TokenType,
     index: usize,
@@ -42,9 +39,8 @@ impl Token {
         self.token_type
     }
 
-
-    pub fn data(&self) -> &Option<String> {
-        &self.data
+    pub fn data(&self) -> Option<&String> {
+        self.data.as_ref()
     }
 }
 
@@ -115,7 +111,7 @@ mod tests {
     fn test1() {
         lex_test(
             "let first = 0;",
-            "Keyword(let) Identifier(first) Separator(=) Integer(0) Separator(;)"
+            "Keyword(let) Identifier(first) Operator(=) Integer(0) Separator(;)"
         );
     }
 }

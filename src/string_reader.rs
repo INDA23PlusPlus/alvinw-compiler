@@ -5,7 +5,6 @@ pub fn is_word_char(c: char) -> bool {
 }
 
 pub struct StringReader<'a> {
-    value: &'a str,
     chars: Chars<'a>,
     index: usize,
     peeked_char: Option<char>,
@@ -14,7 +13,6 @@ pub struct StringReader<'a> {
 impl<'a> StringReader<'a> {
     pub fn new(value: &'a str) -> Self {
         Self {
-            value,
             chars: value.chars(),
             index: 0,
             peeked_char: None,
