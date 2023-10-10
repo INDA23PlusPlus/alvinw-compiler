@@ -8,7 +8,6 @@ pub enum ParseError {
     },
     ExpectedButNothingFound(TokenType),
     UnexpectedEnd,
-    InvalidStatement,
     InvalidToken(Token),
 }
 
@@ -85,6 +84,7 @@ impl Parser {
 
     fn statement(&mut self) -> Result<Statement, ParseError> {
         let token = self.read().ok_or(ParseError::UnexpectedEnd)?;
+        println!("dbu3 {:?}", token);
         if token.is(TokenType::Keyword, "let") {
             let name = self.expect_token(TokenType::Identifier)?.data().unwrap().clone();
             self.expect_exact_token(TokenType::Operator, "=")?;
@@ -113,7 +113,10 @@ impl Parser {
             return Ok(Statement::If(IfStatement { condition, body }));
         }
 
-        Err(ParseError::InvalidStatement)
+        // Maybe this statement is an expression statement? If not it's invalid.
+        self.index -= 1;
+        let expr = self.expr()?;
+        return Ok(Statement::ExpressionStatement(Box::new(expr)));
     }
 
     fn expr(&mut self) -> Result<Expression, ParseError> {
@@ -153,7 +156,8 @@ impl Parser {
     }
 
     fn factor(&mut self) -> Result<Factor, ParseError> {
-        let token = self.read().ok_or(ParseError::UnexpectedEnd)?;
+        let token = self.read().ok_or(ParseError::UnexpectedEnd)?.clone();
+        println!("dbu2 {:?}", token);
         if token.token_type() == TokenType::Integer {
             let value = token.data()
                 .expect("Integer tokens cannot be empty")
@@ -164,9 +168,55 @@ impl Parser {
             let expr = self.expr()?;
             self.expect_exact_token(TokenType::Separator, ")")?;
             return Ok(Factor::Expression(Box::new(expr)));
+        } else if token.token_type() == TokenType::Identifier {
+            let ident = token.data().expect("Identifier must be valid").clone();
+            println!("dbu1 {:?}", ident);
+            let next = self.peek();
+            if let Some(next) = next {
+                if next.is(TokenType::Separator, "(") {
+                    self.skip();
+                    let mut arguments = Vec::new();
+                    loop {
+                        match self.peek() {
+                            Some(token) if token.is(TokenType::Separator, ")") => {
+                                // End of arguments
+                                break;
+                            },
+                            _ => {},
+                        }
+                        let arg = self.expr()?;
+                        arguments.push(arg);
+                        let next = self.read();
+                        match next {
+                            Some(token) if token.is(TokenType::Separator, ")") => {
+                                // End of arguments
+                                break;
+                            }
+                            Some(token) if token.is(TokenType::Separator, ",") => {
+                                // Read another argument
+                                continue;
+                            }
+                            Some(other) => {
+                                return Err(ParseError::InvalidToken(other.clone()));
+                            }
+                            None => {
+                                return Err(ParseError::UnexpectedEnd);
+                            }
+                        }
+                    }
+
+                    return Ok(Factor::FunctionCall(FunctionCall {
+                        function_name: ident,
+                        arguments
+                    }));
+                }
+            }
+
+            // Variable
+            return Ok(Factor::Variable(ident));
         }
 
-        return Err(ParseError::InvalidToken((*token).clone()));
+        return Err(ParseError::InvalidToken(token));
     }
 }
 
@@ -185,6 +235,7 @@ enum Statement {
     VariableDeclaration(VariableAssignment),
     VariableChange(VariableAssignment),
     If(IfStatement),
+    ExpressionStatement(Box<Expression>),
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -217,6 +268,14 @@ enum Term {
 enum Factor {
     Integer(Integer),
     Expression(Box<Expression>),
+    Variable(String),
+    FunctionCall(FunctionCall)
+}
+
+#[derive(Eq, PartialEq, Debug)]
+struct FunctionCall {
+    function_name: String,
+    arguments: Vec<Expression>,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -315,6 +374,34 @@ mod tests {
                         })
                     ]
                 },
+            }
+        );
+    }
+
+    #[test]
+    fn function_call() {
+        parse_test(
+            "let a = 1;\
+                    print(a + 1);
+                    ",
+            AST {
+                root_block: Block {
+                    statements: vec![
+                        Statement::VariableDeclaration(VariableAssignment {
+                            variable_name: "a".to_string(),
+                            value_expr: Expression::Term(Term::Factor(Factor::Integer(Integer { value: 1 })))
+                        }),
+                        Statement::ExpressionStatement(Box::new(Expression::Term(Term::Factor(Factor::FunctionCall(FunctionCall {
+                            function_name: "print".to_string(),
+                            arguments: vec![
+                                Expression::Add(
+                                    Box::new(Expression::Term(Term::Factor(Factor::Variable("a".to_string())))),
+                                    Term::Factor(Factor::Integer(Integer { value: 1 }))
+                                )
+                            ]
+                        })))))
+                    ]
+                }
             }
         );
     }
