@@ -11,12 +11,16 @@ pub enum ParseError {
     InvalidToken(Token),
 }
 
-struct Parser {
+pub struct Parser {
     tokens: Vec<Token>,
     index: usize,
 }
 
 impl Parser {
+    pub fn new(tokens: Vec<Token>) -> Self {
+        Self { tokens, index: 0 }
+    }
+
     fn peek(&mut self) -> Option<&Token> {
         self.tokens.get(self.index)
     }
@@ -94,7 +98,7 @@ impl Parser {
                 variable_name: name,
                 value_expr: value,
             }));
-        } else if token.is(TokenType::Keyword, "change") {
+        } else if token.is(TokenType::Keyword, "set") {
             let name = self.expect_token(TokenType::Identifier)?.data().unwrap().clone();
             self.expect_exact_token(TokenType::Operator, "=")?;
             let value = self.expr()?;
@@ -221,17 +225,17 @@ impl Parser {
 }
 
 #[derive(Eq, PartialEq, Debug)]
-struct AST {
-    root_block: Block,
+pub struct AST {
+    pub root_block: Block,
 }
 
 #[derive(Eq, PartialEq, Debug)]
-struct Block {
-    statements: Vec<Statement>,
+pub struct Block {
+    pub statements: Vec<Statement>,
 }
 
 #[derive(Eq, PartialEq, Debug)]
-enum Statement {
+pub enum Statement {
     VariableDeclaration(VariableAssignment),
     VariableChange(VariableAssignment),
     If(IfStatement),
@@ -239,33 +243,33 @@ enum Statement {
 }
 
 #[derive(Eq, PartialEq, Debug)]
-struct VariableAssignment {
-    variable_name: String,
-    value_expr: Expression,
+pub struct VariableAssignment {
+    pub variable_name: String,
+    pub value_expr: Expression,
 }
 
 #[derive(Eq, PartialEq, Debug)]
-struct IfStatement {
-    condition: Expression,
-    body: Block,
+pub struct IfStatement {
+    pub condition: Expression,
+    pub body: Block,
 }
 
 #[derive(Eq, PartialEq, Debug)]
-enum Expression {
+pub enum Expression {
     Term(Term),
     Add(Box<Expression>, Term),
     Subtract(Box<Expression>, Term),
 }
 
 #[derive(Eq, PartialEq, Debug)]
-enum Term {
+pub enum Term {
     Factor(Factor),
     Multiply(Box<Term>, Factor),
     Divide(Box<Term>, Factor),
 }
 
 #[derive(Eq, PartialEq, Debug)]
-enum Factor {
+pub enum Factor {
     Integer(Integer),
     Expression(Box<Expression>),
     Variable(String),
@@ -273,13 +277,13 @@ enum Factor {
 }
 
 #[derive(Eq, PartialEq, Debug)]
-struct FunctionCall {
-    function_name: String,
-    arguments: Vec<Expression>,
+pub struct FunctionCall {
+    pub function_name: String,
+    pub arguments: Vec<Expression>,
 }
 
 #[derive(Eq, PartialEq, Debug)]
-struct Integer {
+pub struct Integer {
     value: i32,
 }
 
@@ -359,7 +363,7 @@ mod tests {
     fn variable_declaration_and_change() {
         parse_test(
             "let a = 1;\
-                    change a = 2;
+                    set a = 2;
                     ",
             AST {
                 root_block: Block {
@@ -404,5 +408,34 @@ mod tests {
                 }
             }
         );
+    }
+
+    #[test]
+    fn variable_decl_and_change() {
+        parse_test(
+            "let a = 2; set a = 2;",
+            AST {
+                root_block: Block {
+                    statements: vec![
+                        Statement::VariableDeclaration(
+                            VariableAssignment {
+                                variable_name: "a".to_string(),
+                                value_expr: Expression::Term(Term::Factor(Factor::Integer(
+                                    Integer { value: 2 }
+                                )))
+                            }
+                        ),
+                        Statement::VariableChange(
+                            VariableAssignment {
+                                variable_name: "a".to_string(),
+                                value_expr: Expression::Term(Term::Factor(Factor::Integer(
+                                    Integer { value: 2 }
+                                )))
+                            }
+                        )
+                    ]
+                }
+            }
+        )
     }
 }

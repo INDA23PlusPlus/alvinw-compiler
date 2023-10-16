@@ -6,8 +6,8 @@ let first = 0;
 let second = 1;
 loop {
     let n = first + second;
-    first = second;
-    second = n;
+    set first = second;
+    set second = n;
     print(n);
 }
 ```
