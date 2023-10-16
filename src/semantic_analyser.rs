@@ -6,6 +6,7 @@ pub enum SemanticAnalysisError {
     VariableAlreadyDeclared(String),
     UndeclaredVariable(String),
     UndeclaredFunction(String),
+    ExpectedBooleanExpression,
 }
 
 type Error = SemanticAnalysisError;
@@ -40,6 +41,9 @@ fn validate_block(outer_variables: &Variables, block: Block) -> Res {
             }
             Statement::If(if_statement) => {
                 validate_expr(&variables, &if_statement.condition)?;
+                if !is_boolean_expression(&if_statement.condition) {
+                    return Err(Error::ExpectedBooleanExpression);
+                }
                 validate_block(&variables, if_statement.body)?;
             }
             Statement::ExpressionStatement(expr) => {
@@ -64,9 +68,30 @@ fn validate_expr(variables: &Variables, expr: &Expression) -> Res {
             validate_expr(variables, expr.as_ref())?;
             validate_term(variables, term)?;
         }
+        Expression::Equals(expr1, expr2) => {
+            validate_expr(variables, expr1.as_ref())?;
+            validate_expr(variables, expr2.as_ref())?;
+        }
+        Expression::LessThan(expr1, expr2) => {
+            validate_expr(variables, expr1.as_ref())?;
+            validate_expr(variables, expr2.as_ref())?;
+        }
+        Expression::MoreThan(expr1, expr2) => {
+            validate_expr(variables, expr1.as_ref())?;
+            validate_expr(variables, expr2.as_ref())?;
+        }
     }
 
     Ok(())
+}
+
+fn is_boolean_expression(expr: &Expression) -> bool {
+    match expr {
+        Expression::Equals(_, _) => true,
+        Expression::LessThan(_, _) => true,
+        Expression::MoreThan(_, _) => true,
+        _ => false,
+    }
 }
 
 fn validate_term(variables: &Variables, term: &Term) -> Res {
@@ -165,5 +190,11 @@ mod tests {
     fn test5() {
         let err = analyze_err("unknown(2);");
         assert_eq!(err, Error::UndeclaredFunction("unknown".to_string()));
+    }
+
+    #[test]
+    fn test6() {
+        let err = analyze_err("if (1 + 1) {}");
+        assert_eq!(err, Error::ExpectedBooleanExpression);
     }
 }

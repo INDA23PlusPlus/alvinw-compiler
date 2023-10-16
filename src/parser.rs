@@ -133,6 +133,15 @@ impl Parser {
             } else if next.is(TokenType::Operator, "-") {
                 self.skip();
                 expr = Expression::Subtract(Box::new(expr), self.term()?);
+            } else if next.is(TokenType::Operator, "=") {
+                self.skip();
+                expr = Expression::Equals(Box::new(expr), Box::new(self.expr()?));
+            } else if next.is(TokenType::Operator, "<") {
+                self.skip();
+                expr = Expression::LessThan(Box::new(expr), Box::new(self.expr()?));
+            } else if next.is(TokenType::Operator, ">") {
+                self.skip();
+                expr = Expression::MoreThan(Box::new(expr), Box::new(self.expr()?));
             } else {
                 break;
             }
@@ -259,6 +268,9 @@ pub enum Expression {
     Term(Term),
     Add(Box<Expression>, Term),
     Subtract(Box<Expression>, Term),
+    Equals(Box<Expression>, Box<Expression>),
+    LessThan(Box<Expression>, Box<Expression>),
+    MoreThan(Box<Expression>, Box<Expression>),
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -433,6 +445,26 @@ mod tests {
                                 )))
                             }
                         )
+                    ]
+                }
+            }
+        )
+    }
+
+    #[test]
+    fn if_equals() {
+        parse_test(
+            "if (a = b) {}",
+            AST {
+                root_block: Block {
+                    statements: vec![
+                        Statement::If(IfStatement {
+                            condition: Expression::Equals(
+                                Box::new(Expression::Term(Term::Factor(Factor::Variable("a".to_string())))),
+                                Box::new(Expression::Term(Term::Factor(Factor::Variable("b".to_string()))))
+                            ),
+                            body: Block { statements: vec![] }
+                        })
                     ]
                 }
             }

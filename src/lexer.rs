@@ -11,7 +11,7 @@ pub enum TokenType {
 }
 
 const KEYWORDS: &'static [&'static str] = &["let", "set", "if", "loop"];
-const OPERATORS: [char; 5] = ['+', '-', '*', '/', '='];
+const OPERATORS: [char; 7] = ['+', '-', '*', '/', '=', '<', '>'];
 const SEPARATOR: [char; 6] = ['(', ')', '{', '}', '.', ';'];
 
 #[derive(PartialEq, Eq, Clone)]
