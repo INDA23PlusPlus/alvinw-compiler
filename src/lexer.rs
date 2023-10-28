@@ -10,7 +10,7 @@ pub enum TokenType {
     Integer,
 }
 
-const KEYWORDS: &'static [&'static str] = &["let", "set", "if", "loop"];
+const KEYWORDS: &'static [&'static str] = &["let", "set", "if", "loop", "break"];
 const OPERATORS: [char; 7] = ['+', '-', '*', '/', '=', '<', '>'];
 const SEPARATOR: [char; 6] = ['(', ')', '{', '}', '.', ';'];
 

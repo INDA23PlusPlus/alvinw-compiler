@@ -8,6 +8,7 @@ pub enum ParseError {
     },
     ExpectedButNothingFound(TokenType),
     UnexpectedEnd,
+    ExpectedEndOfFile,
     InvalidToken(Token),
 }
 
@@ -64,7 +65,11 @@ impl Parser {
     }
 
     pub fn parse(&mut self) -> Result<AST, ParseError> {
-        Ok(AST { root_block: self.block()? })
+        let root_block = self.block()?;
+        if self.index != self.tokens.len() {
+            return Err(ParseError::ExpectedEndOfFile);
+        }
+        Ok(AST { root_block })
     }
 
     fn block(&mut self) -> Result<Block, ParseError> {
@@ -115,11 +120,20 @@ impl Parser {
             let body = self.block()?;
             self.expect_exact_token(TokenType::Separator, "}")?;
             return Ok(Statement::If(IfStatement { condition, body }));
+        } else if token.is(TokenType::Keyword, "loop") {
+            self.expect_exact_token(TokenType::Separator, "{")?;
+            let body = self.block()?;
+            self.expect_exact_token(TokenType::Separator, "}")?;
+            return Ok(Statement::Loop(Box::new(body)));
+        } else if token.is(TokenType::Keyword, "break") {
+            self.expect_exact_token(TokenType::Separator, ";")?;
+            return Ok(Statement::Break);
         }
 
         // Maybe this statement is an expression statement? If not it's invalid.
         self.index -= 1;
         let expr = self.expr()?;
+        self.expect_exact_token(TokenType::Separator, ";")?;
         return Ok(Statement::ExpressionStatement(Box::new(expr)));
     }
 
@@ -249,6 +263,8 @@ pub enum Statement {
     VariableChange(VariableAssignment),
     If(IfStatement),
     ExpressionStatement(Box<Expression>),
+    Loop(Box<Block>),
+    Break,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -296,12 +312,13 @@ pub struct FunctionCall {
 
 #[derive(Eq, PartialEq, Debug)]
 pub struct Integer {
-    value: i32,
+    pub value: i32,
 }
 
 #[cfg(test)]
 mod tests {
     use crate::lexer;
+    use crate::parser::Statement::ExpressionStatement;
     use super::*;
 
     fn parse_test(source: &str, ast: AST) {
@@ -465,6 +482,39 @@ mod tests {
                             ),
                             body: Block { statements: vec![] }
                         })
+                    ]
+                }
+            }
+        )
+    }
+
+    #[test]
+    fn loop_test1() {
+        parse_test(
+            "loop {}",
+            AST {
+                root_block: Block {
+                    statements: vec![
+                        Statement::Loop(Box::new(Block { statements: vec![] }))
+                    ]
+                }
+            }
+        )
+    }
+    #[test]
+    fn loop_test2() {
+        parse_test(
+            "loop { print(1); }",
+            AST {
+                root_block: Block {
+                    statements: vec![
+                        Statement::Loop(Box::new(Block { statements: vec![
+                            ExpressionStatement(Box::new(Expression::Term(Term::Factor(Factor::FunctionCall(
+                                FunctionCall { function_name: "print".to_string(), arguments: vec![
+                                    Expression::Term(Term::Factor(Factor::Integer(Integer { value: 1 })))
+                                ] }
+                            )))))
+                        ] }))
                     ]
                 }
             }

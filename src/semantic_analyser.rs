@@ -7,35 +7,36 @@ pub enum SemanticAnalysisError {
     UndeclaredVariable(String),
     UndeclaredFunction(String),
     ExpectedBooleanExpression,
+    BreakOutsideLoop,
 }
 
 type Error = SemanticAnalysisError;
 type Res = Result<(), SemanticAnalysisError>;
 type Variables = HashMap<String, ()>;
 
-fn validate(ast: AST) -> Res {
+pub fn validate(ast: &AST) -> Res {
     let variables = HashMap::new();
-    validate_block(&variables, ast.root_block)
+    validate_block(&variables, &ast.root_block, false)
 }
 
-fn validate_block(outer_variables: &Variables, block: Block) -> Res {
+fn validate_block(outer_variables: &Variables, block: &Block, is_loop: bool) -> Res {
     let mut variables: Variables = HashMap::new();
     println!("Outer variables: {:?}", outer_variables);
     for (variable_name, _) in outer_variables {
         variables.insert(variable_name.clone(), ());
     }
-    for statement in block.statements {
+    for statement in &block.statements {
         match statement {
             Statement::VariableDeclaration(decl) => {
                 if variables.contains_key(&decl.variable_name) {
-                    return Err(Error::VariableAlreadyDeclared(decl.variable_name));
+                    return Err(Error::VariableAlreadyDeclared(decl.variable_name.to_string()));
                 }
                 validate_expr(&variables, &decl.value_expr)?;
-                variables.insert(decl.variable_name, ());
+                variables.insert(decl.variable_name.to_string(), ());
             }
             Statement::VariableChange(assignment) => {
                 if !variables.contains_key(&assignment.variable_name) {
-                    return Err(Error::UndeclaredVariable(assignment.variable_name));
+                    return Err(Error::UndeclaredVariable(assignment.variable_name.to_string()));
                 }
                 validate_expr(&variables, &assignment.value_expr)?;
             }
@@ -44,10 +45,18 @@ fn validate_block(outer_variables: &Variables, block: Block) -> Res {
                 if !is_boolean_expression(&if_statement.condition) {
                     return Err(Error::ExpectedBooleanExpression);
                 }
-                validate_block(&variables, if_statement.body)?;
+                validate_block(&variables, &if_statement.body, is_loop)?;
             }
             Statement::ExpressionStatement(expr) => {
                 validate_expr(&variables, expr.as_ref())?;
+            }
+            Statement::Loop(block) => {
+                validate_block(&variables, block, true)?;
+            },
+            Statement::Break => {
+                if !is_loop {
+                    return Err(Error::BreakOutsideLoop);
+                }
             }
         }
     }
@@ -156,7 +165,7 @@ mod tests {
         let ast = parser.parse().unwrap();
         println!("ast = {:#?}", ast);
 
-        validate(ast)
+        validate(&ast)
     }
 
     fn analyze_err(source: &str) -> Error {
@@ -183,7 +192,7 @@ mod tests {
 
     #[test]
     fn test4() {
-        analyze("let a = 2; print(a + 2)").unwrap();
+        analyze("let a = 2; print(a + 2);").unwrap();
     }
 
     #[test]
