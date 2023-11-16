@@ -123,4 +123,13 @@ mod tests {
             "#include <stdio.h>\nint main() { int a = 2;a = a + 2;printf(\"%d\\n\", a); }"
         )
     }
+
+    #[test]
+    fn test7() {
+        assert_eq!(transpile(
+            "print(1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1);"
+        ),
+            "#include <stdio.h>\nint main() { printf(\"%d\\n\", 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1 + 1); }"
+        );
+    }
 }

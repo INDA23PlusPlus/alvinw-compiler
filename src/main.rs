@@ -8,6 +8,7 @@ mod lexer;
 mod parser;
 mod semantic_analyser;
 mod c_transpiler;
+mod jvm_compiler;
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
